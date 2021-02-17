@@ -1,0 +1,143 @@
+---
+title: "Demonstration of Simple Support Vector Classifier"
+author: "JAS/jck2183-note"
+date: 'null'
+output:
+  output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Demonstration of Support Vector Classifiers
+Data Citation: We are using a dataset containing features related to heart disease. There are 13 features and the outcome variable is a binary, classification variable indicating the presence of heart disease.
+
+***
+
+### Step 1: Load packages
+
+e1071 contains the svm function. Caret contains the data partitioning functions for creating of our training and testing datasets. Remember to install the packages if this is your first time utilizing them.
+
+```{r packages}
+library(e1071)
+library (caret)
+```
+
+##Step 2: Load data and perform minor cleaning, check and recode missings etc.
+1. How to load a flat text file
+2. How to assign column names when none are provided
+3. How to check variable types across the dataframe
+4. How to recode missing indicators, change variable types and explore variable distributions
+
+
+```{r data_prep}
+heart.data = read.csv("./data/processed.cleveland.data", header=FALSE)
+
+var.names<-c("age", "sex", "pain_type", "resting_sysbp", "chol", "fast_blsugar_gt120", "rest_ecg", "max_hr", "exerc_angina", "ST_depression", "ST_slope", "vessels_colorflu", "defect", "heart_disease_present")
+
+colnames(heart.data)<-var.names
+str(heart.data)
+
+heart.data[heart.data=="?"]<-NA
+
+heart.data$defect<-as.numeric(factor(heart.data$defect))
+heart.data$vessels_colorflu<-as.numeric(factor(heart.data$vessels_colorflu))
+
+heart.data$outcome<-ifelse(heart.data$heart_disease_present==0, 0,1)
+heart.data$heart_disease_present<-NULL
+heart.data$outcome<-factor(heart.data$outcome)
+levels(heart.data$outcome)<-c("HD Not Present", "HD Present")
+str(heart.data)
+summary(heart.data)
+
+#Remove the missings
+heart.data.nomiss<-na.omit(heart.data)
+
+#Set No Heart Disease as Reference Level
+heart.data.nomiss$outcome<-relevel(heart.data.nomiss$outcome, ref="HD Not Present")
+
+```
+
+### Step 3: Partition data into training and testing
+
+```{r}
+set.seed(100)
+train.indices<-createDataPartition(y=heart.data.nomiss$outcome,p=0.7,list=FALSE)
+
+training<-heart.data.nomiss[train.indices,]
+testing<-heart.data.nomiss[-train.indices,]
+```
+
+
+### Step 4: Construct and tune the Support Vector Machine with a linear classifier (Support Vector Classifier)
+
+SVM requires us to set the hyperparameter C or cost. The smaller the value of C, the less misclassification the SVM will accept (i.e. data that crosses the hyperplane). We also set the kernel as linear to fit a support vector classifier. By using scale=TRUE, we ask the svm to standardize the variables.
+
+```{r}
+set.seed(100)
+svm.heart<-svm(outcome ~ ., data=training, kernel="linear", cost=1, scale=TRUE)
+print(svm.heart)
+
+svm.pred<-predict(svm.heart, newdata=training[,1:13])
+table(svm.pred, training$outcome)
+confusionMatrix(svm.pred, training$outcome, positive="HD Present")
+
+#Reminder this is how accuracy is calculated
+misClasificError <- mean(svm.pred != training$outcome, na.rm=T)
+print(paste('Accuracy Model 1',1-misClasificError))
+
+features<-training[,1:13]
+outcome<-training$outcome
+
+svm_tune <- tune(svm, train.x=features, train.y=outcome,  kernel="linear", range=list(cost=10^(-3:2)))
+
+summary(svm_tune)
+plot(svm_tune)
+
+best.tune<-svm_tune$best.parameters
+
+svm.heart.new<-svm(outcome ~ ., data=training, kernel="linear", cost=best.tune,  scale=TRUE)
+
+svm.pred.new<-predict(svm.heart.new, newdata=training[,1:13])
+table(svm.pred.new, training$outcome)
+
+confusionMatrix(svm.pred, training$outcome, positive="HD Present")
+
+
+```
+
+### Alternate: Using Caret
+
+```{r}
+train_control<-trainControl(method="cv", number=10)
+
+svm.caret<-train(outcome ~ ., data=training, method="svmLinear", trControl=train_control, preProcess=c("center", "scale"))
+
+svm.caret
+
+#Incorporate different values for cost
+
+svm.caret.2<-train(outcome ~ ., data=training, method="svmLinear", trControl=train_control, preProcess=c("center", "scale"), tuneGrid=expand.grid(C=seq(0.00001,2, length=30)))
+
+svm.caret.2
+plot(svm.caret.2)
+
+svm.caret.2$finalModel
+
+
+```
+
+### Apply in Test Set
+
+```{r}
+
+svm.pred.test<-predict(svm.caret.2, newdata=testing[,1:13])
+table(svm.pred.test, testing$outcome)
+
+confusionMatrix(svm.pred.test, testing$outcome, positive="HD Present")
+
+
+```
+
+
