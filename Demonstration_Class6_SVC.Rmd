@@ -1,9 +1,13 @@
 ---
 title: "Demonstration of Simple Support Vector Classifier"
-author: "JAS/jck2183-note"
+author: "JAS"
 date: 'null'
 output:
-  output: github_document
+  pdf_document: default
+  html_document: default
+  word_document: default
+editor_options:
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
