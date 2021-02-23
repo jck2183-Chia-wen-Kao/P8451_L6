@@ -1,11 +1,12 @@
 ---
-title: "P8451-Assignment 6_jck2183"
-output: github_document
+title: "pdf_P8451_hw6"
+author: "jck2183_Chia-wen Kao"
+date: "2021/2/24"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#install.packages("NHANES")
 library(NHANES)
 library(tidyverse)
 library(caret)
@@ -25,6 +26,7 @@ data(NHANES)
 hw6_df = NHANES %>% select(Age, Race1, Education, HHIncome, Weight, Height, Pulse, Diabetes, BMI, PhysActive, Smoke100)
 summary(hw6_df)
 ```
+
 ```{r}
 hw6_df = hw6_df %>%  
     janitor::clean_names() %>% 
@@ -32,7 +34,6 @@ hw6_df = hw6_df %>%
 ```
 
 After excluding the missing values, we have total 6356 observations with 11 variables.
-
 
 #### Partitioning
 
@@ -90,8 +91,6 @@ print(paste('Accuracy Model Tree model 2',1 - misClasificError_treedb2))
 varImp(tree_db2)
 ```
 
-
-
 b) Support Vector Classifier (i.e. Support Vector Machine with a linear classifier)
 
 ```{r}
@@ -110,6 +109,7 @@ confusionMatrix(tune_test, test_dat$diabetes, positive = "Yes")
 
 c) Logistic regression.
 
+* Include all features, fit manually
 ```{r, results= 'hide'}
 set.seed(100)
 logit_mod = glm(diabetes ~ ., family = binomial(link = 'logit'), data = train_dat) 
@@ -123,6 +123,9 @@ test_lm = (as.numeric(test_dat$diabetes) - 1)
 misClasificError_lm = mean(lm_prob != test_lm, na.rm = T) 
 print(paste('Accuracy Model Logistic Model',1-misClasificError_lm))
 ```
+
+Fit via cross-validation.
+
 ```{r}
 set.seed(100)
 logistic_fit = cv.glmnet(x.train, train_dat$diabetes, family = "binomial", type.measure = "auc", nfolds = 10)
@@ -141,6 +144,7 @@ misClasificError_lm = mean(logistic_prob  != test_lm, na.rm = T)
 print(paste('Accuracy Model Logistic Model',1 - misClasificError_lm))
 ```
 
+Compared to the accuracy of the two logistic regression, I decide to use logistic regression with cross-validation to further compare with the other two models because of higher accuracy.
 
 ### 4. Calculate final accuracy in a test set for the model you determine to be the most appropriate model.
 
@@ -151,4 +155,3 @@ From the above calculation, SVM has the highest accuracy compared to the other t
 One limitations in the practice is that, since the support vector classifier works by putting data points, above and below the classifying hyperplane there is no probabilistic explanation for the classification.
 
 Another limitation is that SVM will underperform in a large-p-small-n scenario.
-
