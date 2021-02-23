@@ -23,7 +23,7 @@ library(glmnet)
 ```{r}
 data(NHANES) 
 hw6_df = NHANES %>% select(Age, Race1, Education, HHIncome, Weight, Height, Pulse, Diabetes, BMI, PhysActive, Smoke100)
-summary(hw6_df)
+#summary(hw6_df)
 
 ```
 ```{r}
@@ -39,7 +39,7 @@ After excluding the missing values, we have total 6356 observations with 11 vari
 
 ```{r}
 set.seed(100)
-trRow = createDataPartition(hw6_df$diabetes, p=0.7, list=FALSE)
+trRow = createDataPartition(hw6_df$diabetes, p = 0.7, list = FALSE)
 
 train_dat = hw6_df[trRow,]
 test_dat = hw6_df[-trRow,]
@@ -47,7 +47,6 @@ test_dat = hw6_df[-trRow,]
 x.train = model.matrix(diabetes~., train_dat)[,-1]
 x.test = model.matrix(diabetes~., test_dat)[,-1]
 
-summary(x.train)
 ```
 
 
@@ -55,56 +54,43 @@ summary(x.train)
 
 ### 2. Construct three prediction models to predict diabetes using the 11 features from NHANES. 
 
+### 3.You will optimize each model using cross-validation to choose hyperparameters in the training data and then compare performance across models.
+
 You will use the following three algorithms to create your prediction models:
 
 a) Classification Tree
 
 ```{r}
 set.seed(100)
-train_ctrl = trainControl(method="cv", number=10)
-tree_db1 = train(diabetes~ . , data=train_dat, method="rpart",trControl=train_ctrl)
+train_ctrl = trainControl(method = "cv", number = 10)
+tree_db1 = train(diabetes~ . , data = train_dat, method = "rpart",trControl = train_ctrl)
 tree_db1$bestTune
 rpart.plot(tree_db1$finalModel)
 
 pred_treedb1 = tree_db1 %>% predict(newx = x.test, type = 'prob')
 tree_db1_prob = ifelse(pred_treedb1$Yes > 0.5,1,0)
-test_treedb1 = (as.numeric(test_dat$diabetes)-1)
+test_treedb1 = (as.numeric(test_dat$diabetes) - 1)
 misClasificError_treedb1 = mean(tree_db1_prob != test_treedb1, na.rm = T)
-print(paste('Accuracy Model Tree model 1',1-misClasificError_treedb1))
+print(paste('Accuracy Model Tree model 1',1 - misClasificError_treedb1))
 varImp(tree_db1)
 ```
 
 Specify tuneGrid so caret explores wider variety of cp-values
 ```{r}
-grid = expand.grid(cp=seq(0.001,0.1, by=0.001))
-tree_db2 = train(diabetes ~ ., data=train_dat, method="rpart", trControl=train_ctrl, tuneGrid=grid)
+grid = expand.grid(cp = seq(0.001,0.1, by = 0.001))
+tree_db2 = train(diabetes ~ ., data = train_dat, method = "rpart", trControl = train_ctrl, tuneGrid = grid)
 rpart.plot(tree_db2$finalModel)
 
 tree_db2$bestTune
 
 pred_treedb2 = tree_db2 %>% predict(newx = x.test, type = 'prob')
 tree_db2_prob = ifelse(pred_treedb2$Yes > 0.5,1,0)
-test_treedb2 = (as.numeric(test_dat$diabetes)-1)
+test_treedb2 = (as.numeric(test_dat$diabetes) - 1)
 misClasificError_treedb2 = mean(tree_db2_prob != test_treedb2, na.rm = T)
-print(paste('Accuracy Model Tree model 2',1-misClasificError_treedb2))
+print(paste('Accuracy Model Tree model 2',1 - misClasificError_treedb2))
 varImp(tree_db2)
 ```
 
-```{r}
-set.seed(100)
-grid = expand.grid(.cp=0.002)
-tree_db3 = train(diabetes ~ ., data=train_dat, method="rpart", trControl=train_ctrl, tuneGrid=grid)
-rpart.plot(tree_db3$finalModel)
-
-pred_treedb3 = tree_db3 %>% predict(newx = x.test, type = 'prob')
-tree_db3_prob = ifelse(pred_treedb3$Yes > 0.5,1,0)
-test_treedb3 = (as.numeric(test_dat$diabetes)-1)
-misClasificError_treedb3 = mean(tree_db3_prob != test_treedb3, na.rm = T)
-
-print(paste('Accuracy Model Tree model 3',1-misClasificError_treedb3))
-varImp(tree_db3)
-
-```
 
 
 b) Support Vector Classifier (i.e. Support Vector Machine with a linear classifier)
@@ -113,9 +99,9 @@ b) Support Vector Classifier (i.e. Support Vector Machine with a linear classifi
 set.seed(100)
 linear_tune = tune.svm(diabetes ~., data = train_dat, 
                         kernel = "linear",
-                        range=list(cost=10^(-3:2)))
+                        range = list(cost = 10^(-3:2)))
 
-summary(linear_tune)
+#summary(linear_tune)
 best_linear = linear_tune$best.model
 tune_test = predict(best_linear, newdata = test_dat)
 table(tune_test, test_dat$diabetes)
@@ -127,19 +113,18 @@ c) Logistic regression.
 
 ```{r}
 set.seed(100)
-logit_mod = glm(diabetes ~ ., family=binomial(link ='logit'), data = train_dat) 
-summary(logit_mod)
+logit_mod = glm(diabetes ~ ., family=binomial(link = 'logit'), data = train_dat) 
+#summary(logit_mod)
 ```
 
 ```{r}
-fit_lm = predict(logit_mod, test_dat, type ="response")
+fit_lm = predict(logit_mod, test_dat, type = "response")
 lm_prob = ifelse(fit_lm > 0.5,1,0)
-test_lm = (as.numeric(test_dat$diabetes)-1) 
-misClasificError_lm = mean(lm_prob != test_lm, na.rm=T) 
+test_lm = (as.numeric(test_dat$diabetes) - 1) 
+misClasificError_lm = mean(lm_prob != test_lm, na.rm = T) 
 print(paste('Accuracy Model Logistic Model',1-misClasificError_lm))
 ```
 ```{r}
-library(InformationValue)
 set.seed(100)
 logistic_fit = cv.glmnet(x.train, train_dat$diabetes, family = "binomial", type.measure = "auc", nfolds = 10)
 
@@ -152,15 +137,19 @@ pred_logistic = predict(logistic_fit, newx = x.test,
                   s = "lambda.1se",
                   type = "response")
 logistic_prob = ifelse(pred_logistic > 0.5, 1, 0)
-test_lm = (as.numeric(test_dat$diabetes)-1) 
-misClasificError_lm = mean(logistic_prob  != test_lm, na.rm=T)
-print(paste('Accuracy Model Logistic Model',1-misClasificError_lm))
+test_lm = (as.numeric(test_dat$diabetes) - 1) 
+misClasificError_lm = mean(logistic_prob  != test_lm, na.rm = T)
+print(paste('Accuracy Model Logistic Model',1 - misClasificError_lm))
 ```
 
 
-### 3.You will optimize each model using cross-validation to choose hyperparameters in the training data and then compare performance across models.
-
 ### 4. Calculate final accuracy in a test set for the model you determine to be the most appropriate model.
 
+From the above calculation, SVM has the highest accuracy compared to the other two models, with logistic regression coming as next and classification tree as last. I will choose SVM as the most appropriate model based on the accuracy in a test set.
+
 ### 5. List and describe at least two limitations of the model generated by this analysis. Limitations can be analytical or they can be regarding how the model would be used in practice.
+
+One limitations in the practice is that, since the support vector classifier works by putting data points, above and below the classifying hyperplane there is no probabilistic explanation for the classification.
+
+Another limitation is that SVM will underperform in a large-p-small-n scenario.
 
